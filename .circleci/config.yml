@@ -6,9 +6,7 @@ jobs:
       - image: cimg/node:14.15
       - image: grokzen/redis-cluster
         environment:
-          - SLAVES_PER_MASTER=0
-        ports:
-          - 7000-7005:7000-7005
+          SLAVES_PER_MASTER: 0
     steps:
       - checkout
       - restore_cache:
