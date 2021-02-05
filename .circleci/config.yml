@@ -1,0 +1,58 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: cimg/node:14.15
+      - image: grokzen/redis-cluster
+        environment:
+          SLAVES_PER_MASTER: 0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - dependencies-{{ checksum "package.json" }}-{{ checksum "yarn.lock" }}
+            - dependencies-{{ checksum "package.json" }}
+            - dependencies-
+      - run:
+          command: |
+            yarn install --pure-lockfile
+      - save_cache:
+          paths:
+            - node_modules
+          key: dependencies-{{ checksum "package.json" }}-{{ checksum "yarn.lock" }}
+      - run:
+          command: yarn lint:ci
+      - run:
+          command: yarn test:ci
+  release:
+    docker:
+      - image: cimg/node:14.15
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - dependencies-{{ checksum "package.json" }}-{{ checksum "yarn.lock" }}
+            - dependencies-{{ checksum "package.json" }}
+            - dependencies-
+      - run:
+          command: |
+            yarn install --pure-lockfile
+      - save_cache:
+          paths:
+            - node_modules
+          key: dependencies-{{ checksum "package.json" }}-{{ checksum "yarn.lock" }}
+      - run:
+          command: yarn semantic-release
+
+workflow:
+  build:
+    jobs:
+      - build
+      - release:
+          requires:
+            - build 
+          filters:
+            branches:
+              only:
+                - main

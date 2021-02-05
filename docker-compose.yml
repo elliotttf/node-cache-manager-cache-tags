@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  redis:
+    image: grokzen/redis-cluster
+    environment:
+      - 'IP=0.0.0.0'
+      - SLAVES_PER_MASTER=0
+    ports:
+      - 7000-7005:7000-7005
+networks:
+  episource:
+    name: dev_network
+    driver: bridge
