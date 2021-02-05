@@ -8,3 +8,4 @@ src/
 coverage/
 tsconfig.json
 .circleci/
+docker-compose.yml
