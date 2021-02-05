@@ -6,6 +6,8 @@
   "scripts": {
     "lint": "eslint \"src/**/*.ts\" --fix",
     "lint:ci": "eslint \"src/**/*.ts\"",
+    "local:up": "docker-compose up",
+    "local:down": "docker-compose down",
     "test": "jest --coverage",
     "test:ci": "jest --coverage --ci --runInBand",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
