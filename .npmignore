@@ -1,0 +1,8 @@
+src/
+.*
+**/*.test.js
+**/*.test.js.map
+**/*.test.d.ts
+*.config.js
+coverage/
+tsconfig.json
