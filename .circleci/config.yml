@@ -7,7 +7,6 @@ executors:
 jobs:
   build:
     executor: node_image
-    resource_class: large
     steps:
       - checkout
       - restore_cache:
@@ -28,7 +27,6 @@ jobs:
           command: yarn test:ci
   release:
     executor: node_image
-    resource_class: large
     steps:
       - checkout
       - restore_cache:
