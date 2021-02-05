@@ -28,6 +28,8 @@ describe('Cache manager cache tags', () => {
   it('can set and get values', async () => {
     await cache.set('test', 'test');
     expect(await cache.get('test')).toBe('test');
+    // @ts-ignore
+    expect(await cache.get('test', { tags: ['test'] })).toBe('test');
   });
 
   it('can set and get tagged values', async () => {

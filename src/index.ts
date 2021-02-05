@@ -85,15 +85,10 @@ export class RedisStore {
     });
   }
 
-  get(
-    key: IORedis.KeyType,
-    options: {
-      tags?: string[];
-    } = {}
-  ): Promise<string | null> {
+  get(key: IORedis.KeyType): Promise<string | null> {
     return new Promise((resolve, reject) => {
       const cb = withCallbackPromise(resolve, reject);
-      this.getClient(options.tags).get(key, handleResponse(cb, { parse: true }));
+      this.getClient().get(key, handleResponse(cb, { parse: true }));
     });
   }
 
