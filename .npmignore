@@ -6,3 +6,4 @@ src/
 *.config.js
 coverage/
 tsconfig.json
+.circleci/
