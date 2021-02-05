@@ -5,7 +5,7 @@ executors:
       - image: cimg/node:14.15
 
 jobs:
-  node_test:
+  build:
     executor: node_image
     resource_class: large
     steps:
@@ -49,10 +49,10 @@ jobs:
 workflow:
   build:
     jobs:
-      - node_test
+      - build
       - release:
           requires:
-            - node_test
+            - build 
           filters:
             branches:
               only:
