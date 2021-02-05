@@ -47,7 +47,7 @@ jobs:
           command: yarn semantic-release
 
 workflow:
-  ci-cd:
+  build:
     jobs:
       - node_test
       - release:
