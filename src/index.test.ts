@@ -5,16 +5,25 @@ describe('Cache manager cache tags', () => {
   let cache: cacheManager.Cache;
   let redisCache: cacheManagerCacheTags.RedisStore;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     cache = cacheManager.caching({
       store: cacheManagerCacheTags,
       clusterConfig: {
         nodes: [{ host: '127.0.0.1', port: 7000 }],
+        enableReadyCheck: true,
       },
       ttl: 86400,
     });
     // @ts-ignore
     redisCache = cache.store;
+    const client = redisCache.getClient();
+    const promise = new Promise(resolve => {
+      client.once('ready', () => resolve('ready'));
+    });
+    if (client.status === 'ready') {
+      return;
+    }
+    await promise;
   });
 
   afterEach(async () => {
@@ -28,8 +37,22 @@ describe('Cache manager cache tags', () => {
   it('can set and get values', async () => {
     await cache.set('test', 'test');
     expect(await cache.get('test')).toBe('test');
-    // @ts-ignore
-    expect(await cache.get('test', { tags: ['test'] })).toBe('test');
+  });
+
+  it('can set and get values with callbacks', done => {
+    cache.set('test', 'test', 9000, err => {
+      if (err) {
+        done(err);
+        return;
+      }
+      cache.get('test', (err2, res2) => {
+        if (err2) {
+          return done(err2);
+        }
+        expect(res2).toBe('test');
+        return done();
+      });
+    });
   });
 
   it('can set and get tagged values', async () => {
@@ -37,6 +60,19 @@ describe('Cache manager cache tags', () => {
     await cache.set('test', 'test', { tags: ['test-tag'] });
     // @ts-ignore
     expect(await redisCache.getClient(['test-tag']).list()).toStrictEqual(['"test"']);
+  });
+
+  it('can wrap tagged values', async () => {
+    expect(
+      await cache.wrap(
+        'test',
+        async () => {
+          return 'test';
+        },
+        // @ts-ignore
+        { tags: ['test'] }
+      )
+    ).toBe('test');
   });
 
   it('can delete values', async () => {
