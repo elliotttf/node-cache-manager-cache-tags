@@ -25,40 +25,31 @@ function handleResponse(cb, opts: Record<string, unknown> = {}) {
 const withCallbackPromise = (resolve, reject) => (err, result) =>
   err ? reject(err) : resolve(result);
 
-const withVariableArgs = <S extends Record<string, unknown>>(
-  resolve: (v: unknown) => void,
-  reject: (e: Error) => void,
-  defaultOptions: S = {} as S
-) => <T>(
-  options?: S,
+const withMaybeCb = async <T>(
+  worker: (options: Record<string, unknown>) => Promise<T>,
+  options?: Record<string, unknown>,
   cb?: IORedis.Callback<T>
-): { myOptions: S; myCb: IORedis.Callback<T> | undefined } => {
-  let myOptions = options ?? defaultOptions;
+): Promise<T> => {
+  let myOptions = options ?? {};
   let myCb = cb;
   if (typeof myOptions === 'function') {
     myCb = myOptions;
-    myOptions = defaultOptions;
-  }
-  if (!myCb) {
-    myCb = withCallbackPromise(resolve, reject);
-  } else {
-    return {
-      myOptions,
-      myCb: (err, res) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(res);
-        myCb(err, res);
-      },
-    };
+    myOptions = {};
   }
 
-  return {
-    myOptions,
-    myCb,
-  };
+  try {
+    const res = await worker(myOptions);
+    if (myCb) {
+      myCb(null, res);
+    }
+    return res;
+  } catch (e) {
+    if (myCb) {
+      myCb(e, null);
+      return null;
+    }
+    throw e;
+  }
 };
 
 export class RedisStore {
@@ -100,40 +91,38 @@ export class RedisStore {
     options?: { ttl?: number; tags?: string[] },
     cb?: IORedis.Callback<null>
   ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const { myOptions, myCb } = withVariableArgs<{ ttl?: number; tags?: string[] }>(
-        resolve,
-        reject
-      )(options, cb);
+    return withMaybeCb(
+      (myOptions: Record<string, unknown>) => {
+        if (!this.isCacheableValue(value)) {
+          throw new Error(`"${value}" is not a cacheable value`);
+        }
 
-      if (!this.isCacheableValue(value)) {
-        myCb(new Error(`"${value}" is not a cacheable value`), undefined);
-        return;
-      }
+        // @ts-ignore
+        const storeTtl = this.storeArgs.ttl;
+        const ttl = myOptions.ttl || myOptions.ttl === 0 ? myOptions.ttl : storeTtl;
+        const val = JSON.stringify(value) || '"undefined"';
 
-      // @ts-ignore
-      const storeTtl = this.storeArgs.ttl;
-      const ttl = myOptions.ttl || myOptions.ttl === 0 ? myOptions.ttl : storeTtl;
-      const val = JSON.stringify(value) || '"undefined"';
-
-      const cache = this.getClient(myOptions.tags);
-      if (ttl) {
-        cache.setex(key, ttl, val, handleResponse(myCb));
-      } else {
-        cache.set(key, val, handleResponse(myCb));
-      }
-    });
+        const cache = this.getClient(myOptions.tags as string[]);
+        if (ttl) {
+          return cache.setex(key, ttl, val);
+        }
+        return cache.set(key, val);
+      },
+      options,
+      cb
+    );
   }
 
-  get<T>(
+  async get<T>(
     key: IORedis.KeyType,
     options: { tags?: string[] },
     cb?: IORedis.Callback<T>
   ): Promise<string | null> {
-    return new Promise((resolve, reject) => {
-      const { myCb } = withVariableArgs<{ tags?: string[] }>(resolve, reject)(options, cb);
-      this.getClient().get(key, handleResponse(myCb, { parse: true }));
-    });
+    return withMaybeCb(
+      async myOptions => JSON.parse(await this.getClient(myOptions.tags as string[]).get(key)),
+      options,
+      cb
+    );
   }
 
   del(
@@ -141,74 +130,55 @@ export class RedisStore {
     options: {
       tags?: string[];
     } = {},
-    cb?: IORedis.Callback<void>
-  ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const { myOptions, myCb } = withVariableArgs<{
-        tags?: string[];
-      }>(resolve, reject)(options, cb);
-      this.getClient(myOptions.tags).del(key, handleResponse(myCb));
-    });
+    cb?: IORedis.Callback<number>
+  ): Promise<number> {
+    return withMaybeCb(
+      async (myOptions: Record<string, unknown>) =>
+        this.getClient(myOptions.tags as string[]).del(key),
+      options,
+      cb
+    );
   }
 
-  async reset(cb?: IORedis.Callback<void>): Promise<void> {
-    try {
-      await this.getClient()
-        .nodes('master')
-        .reduce(async (last, node) => {
-          await last;
-          return new Promise((resolve, reject) => {
-            const resetCb = withCallbackPromise(resolve, reject);
-            node.flushdb(handleResponse(resetCb));
-          });
-        }, Promise.resolve());
-    } catch (e) {
-      if (cb) {
-        cb(e);
-        return;
-      }
-      throw e;
-    }
-    if (cb) {
-      cb(null);
-    }
+  reset(cb?: IORedis.Callback<void>): Promise<void> {
+    return withMaybeCb(
+      async () => {
+        await this.getClient()
+          .nodes('master')
+          .reduce(async (last, node) => {
+            await last;
+            return new Promise((resolve, reject) => {
+              const resetCb = withCallbackPromise(resolve, reject);
+              node.flushdb(handleResponse(resetCb));
+            });
+          }, Promise.resolve());
+      },
+      {},
+      cb
+    );
   }
 
-  async keys(pattern: string, cb?: IORedis.Callback<string[]>): Promise<string[]> {
-    try {
-      const ret = await this.getClient()
-        .nodes('master')
-        .reduce(
-          async (last, node) => [
-            ...(await last),
-            ...(await new Promise<string[]>((resolve, reject) => {
-              node.keys(pattern, handleResponse(withCallbackPromise(resolve, reject)));
-            })),
-          ],
-          Promise.resolve([] as string[])
-        );
-
-      if (cb) {
-        cb(null, ret);
-      }
-
-      return ret;
-    } catch (e) {
-      if (cb) {
-        cb(e, []);
-      }
-      throw e;
-    }
+  keys(pattern: string, cb?: IORedis.Callback<string[]>): Promise<string[]> {
+    return withMaybeCb(
+      () =>
+        this.getClient()
+          .nodes('master')
+          .reduce(
+            async (last, node) => [
+              ...(await last),
+              ...(await new Promise<string[]>((resolve, reject) => {
+                node.keys(pattern, handleResponse(withCallbackPromise(resolve, reject)));
+              })),
+            ],
+            Promise.resolve([] as string[])
+          ),
+      {},
+      cb
+    );
   }
 
   ttl(key: IORedis.KeyType, cb?: IORedis.Callback<number>): Promise<number> {
-    return new Promise((resolve, reject) => {
-      let myCb = cb;
-      if (!cb) {
-        myCb = withCallbackPromise(resolve, reject);
-      }
-      this.redisCache.ttl(key, handleResponse(myCb));
-    });
+    return withMaybeCb(() => this.redisCache.ttl(key), {}, cb);
   }
 }
 

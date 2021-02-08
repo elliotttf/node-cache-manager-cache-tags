@@ -60,6 +60,8 @@ describe('Cache manager cache tags', () => {
     await cache.set('test', 'test', { tags: ['test-tag'] });
     // @ts-ignore
     expect(await redisCache.getClient(['test-tag']).list()).toStrictEqual(['"test"']);
+    // @ts-ignore
+    expect(await cache.get('test', { tags: ['test-tag'] })).toBe('test');
   });
 
   it('can wrap tagged values', async () => {
