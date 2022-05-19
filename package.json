@@ -51,7 +51,7 @@
     "typescript": "^4.1.3"
   },
   "dependencies": {
-    "cache-tags": "^2.8.1",
+    "cache-tags": "^2.9.1",
     "ioredis": "^4.19.4"
   }
 }

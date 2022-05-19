@@ -1635,10 +1635,10 @@ cache-manager@^3.4.0:
     lodash "^4.17.20"
     lru-cache "6.0.0"
 
-cache-tags@^2.8.1:
-  version "2.8.1"
-  resolved "https://registry.yarnpkg.com/cache-tags/-/cache-tags-2.8.1.tgz#463ca912e1a48c1e68674f9fab0f064c7f4677d9"
-  integrity sha512-/xpqyxXpm9NTjJ5xLYyEJb8i+aWXQrLEAcrKkuR83PCJfnGfWXwCO2gobOW6s/ETjSdVMrP0YJN7MXGBPcwinQ==
+cache-tags@^2.9.1:
+  version "2.9.1"
+  resolved "https://registry.yarnpkg.com/cache-tags/-/cache-tags-2.9.1.tgz#e1908462b54d8e3baacf24d202a64a545ee70ec4"
+  integrity sha512-HzzvkxAu55ozqorErbrv5/sYARwDAd1C2icJcZdpwIcHIKGottjZaZOoc2VbSS1FPaUeVURAjCCA9F/NtJS75Q==
   dependencies:
     bluebird "^3.5.1"
     ioredis "^4.14.0"
