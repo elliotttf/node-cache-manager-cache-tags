@@ -8,6 +8,9 @@ jobs:
         environment:
           SLAVES_PER_MASTER: 0
     steps:
+      - add_ssh_keys:
+          fingerprints:
+            - 2a:2a:b7:1e:2b:bb:ee:6f:fb:61:36:54:97:69:eb:ee
       - checkout
       - restore_cache:
           keys:
